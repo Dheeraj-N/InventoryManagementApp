@@ -28,7 +28,7 @@ exports.create = async (data) => {
   const res = await db.query(
     `INSERT INTO raw_material_inventory
       (name, category, available_quantity, minimum_quantity, measured_unit, description, need_alert)
-     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+     VALUES ($1,UPPER($2),$3,$4,$5,$6,$7) RETURNING *`,
     [
       name,
       category,
@@ -54,7 +54,7 @@ exports.update = async (itemId, data) => {
   } = data;
   const res = await db.query(
     `UPDATE raw_material_inventory SET
-      name=$1, category=$2, available_quantity=$3, minimum_quantity=$4,
+      name=$1, category=UPPER($2), available_quantity=$3, minimum_quantity=$4,
       measured_unit=$5, description=$6, need_alert=$7, updated_at=NOW()
      WHERE item_id=$8 RETURNING *`,
     [

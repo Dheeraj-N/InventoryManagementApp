@@ -20,7 +20,7 @@ exports.create = async (data) => {
     data;
   const res = await db.query(
     `INSERT INTO film_inventory (name, category, available_quantity, minimum_quantity, description)
-     VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+     VALUES ($1,UPPER($2),$3,$4,$5) RETURNING *`,
     [name, category, available_quantity, minimum_quantity, description],
   );
   return res.rows[0];
@@ -31,7 +31,7 @@ exports.update = async (id, data) => {
     data;
   const res = await db.query(
     `UPDATE film_inventory SET
-       name=$1, category=$2, available_quantity=$3,
+       name=$1, category=UPPER($2), available_quantity=$3,
        minimum_quantity=$4, description=$5, updated_at=NOW()
      WHERE film_id=$6 RETURNING *`,
     [name, category, available_quantity, minimum_quantity, description,id],

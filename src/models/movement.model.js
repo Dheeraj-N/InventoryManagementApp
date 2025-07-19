@@ -131,7 +131,7 @@ exports.create = async (data) => {
       rented_quantity, rented_date, returned_quantity, returned_date,
       job_card_number, measured_unit, description, type_of_movement
     ) VALUES (
-      $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
+      $1,$2,$3,UPPER($4),$5,$6,$7,$8,$9,$10,$11,$12
     ) RETURNING *`,
     [
       rented_person_name,

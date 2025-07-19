@@ -3,20 +3,20 @@ const db = require('../config/db');
 function getDateFilter(range) {
   switch (range) {
     case 'last_week':
-      return "AND created_at >= NOW() - INTERVAL '7 days'";
+      return "AND updated_at >= NOW() - INTERVAL '7 days'";
     case 'last_month':
-      return "AND created_at >= NOW() - INTERVAL '30 days'";
+      return "AND updated_at >= NOW() - INTERVAL '30 days'";
     case 'last_6_months':
-      return "AND created_at >= NOW() - INTERVAL '180 days'";
+      return "AND updated_at >= NOW() - INTERVAL '180 days'";
     case 'last_year':
-      return "AND created_at >= NOW() - INTERVAL '365 days'";
+      return "AND updated_at >= NOW() - INTERVAL '365 days'";
     default:
       return "";
   }
 }
 
-exports.getTopSellingFilms = async (limit, offset, range) => {
-  const dateFilter = getDateFilter(range);
+exports.getTopSellingFilms = async () => {
+  //const dateFilter = getDateFilter(range);
   const query = `
     SELECT 
       item_name,
@@ -29,7 +29,7 @@ exports.getTopSellingFilms = async (limit, offset, range) => {
         END
       ) AS net_sold
     FROM inventory_movements
-    WHERE film_or_raw='FILM' ${dateFilter}
+    WHERE film_or_raw='Film' 
     GROUP BY item_name, item_category
     HAVING SUM(
         CASE 
@@ -39,14 +39,14 @@ exports.getTopSellingFilms = async (limit, offset, range) => {
         END
     ) > 0
     ORDER BY net_sold DESC
-    LIMIT $1 OFFSET $2;
+    ;
   `;
-  const result = await db.query(query, [limit, offset]);
+  const result = await db.query(query);
   return result.rows;
 };
 
-exports.getTopUsedRawMaterials = async (limit, offset, range) => {
-  const dateFilter = getDateFilter(range);
+exports.getTopUsedRawMaterials = async () => {
+ // const dateFilter = getDateFilter(range);
   const query = `
     SELECT 
       item_name,
@@ -59,7 +59,7 @@ exports.getTopUsedRawMaterials = async (limit, offset, range) => {
         END
       ) AS net_used
     FROM inventory_movements
-    WHERE film_or_raw='RAW' ${dateFilter}
+    WHERE film_or_raw='Raw' 
     GROUP BY item_name, item_category
     HAVING SUM(
         CASE 
@@ -69,8 +69,8 @@ exports.getTopUsedRawMaterials = async (limit, offset, range) => {
         END
     ) > 0
     ORDER BY net_used DESC
-    LIMIT $1 OFFSET $2;
+    ;
   `;
-  const result = await db.query(query, [limit, offset]);
+  const result = await db.query(query, );
   return result.rows;
 };
