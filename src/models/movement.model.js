@@ -222,7 +222,7 @@ exports.delete = async (id) => {
     // 1. Get the movement before deleting
     const res = await db.query(
       "SELECT * FROM inventory_movements WHERE movement_id = $1",
-      [id],
+      [id]
     );
     const movement = res.rows[0];
 
@@ -232,25 +232,34 @@ exports.delete = async (id) => {
       throw error;
     }
 
-    // 2. Reverse inventory adjustment
-    await adjustInventory(movement, null, true); // reverse=true
+    // 2. Try reversing inventory adjustment
+    try {
+      await adjustInventory(movement, null, true); // reverse=true
+    } catch (inventoryErr) {
+      console.warn(
+        `⚠️ Skipping inventory adjustment because item not found:`,
+        inventoryErr.message
+      );
+      // We silently skip adjustment if item missing
+    }
 
-    // 3. Delete the movement
+    // 3. Delete the movement anyway
     await db.query("DELETE FROM inventory_movements WHERE movement_id = $1", [
       id,
     ]);
 
-    return { message: "Movement deleted and inventory adjusted successfully." };
+    return {
+      message:
+        "Movement deleted. Inventory adjusted if item exists, otherwise skipped.",
+    };
   } catch (err) {
-    // Set default error status if not already set
     if (!err.status) {
       err.status = 500;
       err.message = err.message || "Failed to delete movement.";
     }
-    throw err; // will be handled in Express route with next(err)
+    throw err;
   }
 };
-
 
 exports.filterMovements = async (filters) => {
   const conditions = [];
