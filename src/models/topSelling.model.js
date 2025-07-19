@@ -15,8 +15,8 @@ function getDateFilter(range) {
   }
 }
 
-exports.getTopSellingFilms = async () => {
-  //const dateFilter = getDateFilter(range);
+exports.getTopSellingFilms = async (range) => {
+  const dateFilter = getDateFilter(range);
   const query = `
     SELECT 
       item_name,
@@ -29,7 +29,7 @@ exports.getTopSellingFilms = async () => {
         END
       ) AS net_sold
     FROM inventory_movements
-    WHERE film_or_raw='Film' 
+    WHERE film_or_raw='Film' ${dateFilter}
     GROUP BY item_name, item_category
     HAVING SUM(
         CASE 
@@ -45,8 +45,8 @@ exports.getTopSellingFilms = async () => {
   return result.rows;
 };
 
-exports.getTopUsedRawMaterials = async () => {
- // const dateFilter = getDateFilter(range);
+exports.getTopUsedRawMaterials = async (range) => {
+  const dateFilter = getDateFilter(range);
   const query = `
     SELECT 
       item_name,
@@ -59,7 +59,7 @@ exports.getTopUsedRawMaterials = async () => {
         END
       ) AS net_used
     FROM inventory_movements
-    WHERE film_or_raw='Raw' 
+    WHERE film_or_raw='Raw' ${dateFilter}
     GROUP BY item_name, item_category
     HAVING SUM(
         CASE 
