@@ -8,7 +8,7 @@ exports.topSellingFilms = async (req, res, next) => {
 
     const range = req.query.range || null; // last_week, last_month, etc.
 
-    const data = await topSellingModel.getTopSellingFilms();
+    const data = await topSellingModel.getTopSellingFilms(range);
     res.json(data);
   } catch (error) {
     console.error('Error fetching top selling films:', error);
@@ -24,7 +24,7 @@ exports.topUsedRawMaterials = async (req, res, next) => {
 
     const range = req.query.range || null;
 
-    const data = await topSellingModel.getTopUsedRawMaterials();
+    const data = await topSellingModel.getTopUsedRawMaterials(range);
     res.json(data );
   } catch (error) {
     console.error('Error fetching top used raw materials:', error);
