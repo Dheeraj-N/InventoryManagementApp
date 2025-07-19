@@ -165,7 +165,8 @@ exports.update = async (id, data) => {
   //  Step 2: Prevent change to item_name or category
   if (
     data.item_name !== previousMovement.item_name ||
-    data.item_category !== previousMovement.item_category
+    data.item_category !== previousMovement.item_category ||
+    data.type_of_movement !== previousMovement.type_of_movement 
   ) {
     const err = new Error("You cannot change item_name or item_category after creation.");
     err.status = 400;
