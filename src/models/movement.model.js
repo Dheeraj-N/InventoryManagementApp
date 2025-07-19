@@ -23,6 +23,33 @@ const toIntOrNull = (value) => {
   }
 };
 
+const checkStockBeforeMovement = async (film_or_raw, item_name, item_category, rented_quantity, type_of_movement) => {
+  const isFilm = film_or_raw.toUpperCase() === "FILM";
+  const table = isFilm ? "film_inventory" : "raw_material_inventory";
+
+  // Only check stock for OUT movements
+  if (type_of_movement.toUpperCase().startsWith("OUT")) {
+    const res = await db.query(
+      `SELECT available_quantity FROM ${table} WHERE name = $1 AND category = $2`,
+      [item_name, item_category]
+    );
+
+    if (res.rows.length === 0) {
+      throw new Error(`${table} item not found for ${item_name} (${item_category})`);
+    }
+
+    const availableQty = res.rows[0].available_quantity;
+    const neededQty = parseInt(rented_quantity) || 0;
+
+    if (neededQty > availableQty) {
+      throw new Error(
+        `Not enough stock: Available = ${availableQty}, Requested = ${neededQty}`
+      );
+    }
+  }
+};
+
+
 
 const adjustInventory = async (
   newMovement,
@@ -124,6 +151,7 @@ exports.create = async (data) => {
   } = data;
 
   await validateItemExists(film_or_raw, item_name, item_category);
+   await checkStockBeforeMovement(film_or_raw, item_name, item_category, rented_quantity, type_of_movement);
 
   const res = await db.query(
     `INSERT INTO inventory_movements (
@@ -188,6 +216,34 @@ exports.update = async (id, data) => {
   } = data;
 
   //await validateItemExists(film_or_raw, item_name, item_category);
+
+  if (type_of_movement.toUpperCase().startsWith("OUT")) {
+    const isFilm = film_or_raw.toUpperCase() === "FILM";
+    const table = isFilm ? "film_inventory" : "raw_material_inventory";
+
+    const res = await db.query(
+      `SELECT available_quantity FROM ${table} WHERE name=$1 AND category=$2`,
+      [previousMovement.item_name, previousMovement.item_category]
+    );
+
+    if (res.rows.length === 0) {
+      throw new Error(`${table} item not found for ${previousMovement.item_name}`);
+    }
+
+    const availableQty = res.rows[0].available_quantity;
+    const oldQty = parseInt(previousMovement.rented_quantity) || 0;
+    const newQty = parseInt(rented_quantity) || 0;
+
+    // effectively, after updating, we need extra (new - old)
+    const extraNeeded = newQty - oldQty;
+
+    if (extraNeeded > availableQty) {
+      throw new Error(
+        `Not enough stock: Available=${availableQty}, Extra Needed=${extraNeeded}`
+      );
+    }
+  }
+
 
   const res = await db.query(
     `UPDATE inventory_movements SET
