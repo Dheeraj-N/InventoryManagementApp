@@ -23,8 +23,8 @@ exports.getTopSellingFilms = async () => {
       item_category,
       SUM(
         CASE 
-          WHEN type_of_movement = 'OUT' THEN rented_quantity
-          WHEN type_of_movement = 'IN' THEN -returned_quantity
+          WHEN UPPER(type_of_movement) = 'OUT' THEN rented_quantity
+          WHEN UPPER(type_of_movement) = 'IN' THEN -returned_quantity
           ELSE 0
         END
       ) AS net_sold
@@ -33,8 +33,8 @@ exports.getTopSellingFilms = async () => {
     GROUP BY item_name, item_category
     HAVING SUM(
         CASE 
-          WHEN type_of_movement = 'OUT' THEN rented_quantity
-          WHEN type_of_movement = 'IN' THEN -returned_quantity
+          WHEN UPPER(type_of_movement) = 'OUT' THEN rented_quantity
+          WHEN UPPER(type_of_movement) = 'IN' THEN -returned_quantity
           ELSE 0
         END
     ) > 0
@@ -53,8 +53,8 @@ exports.getTopUsedRawMaterials = async () => {
       item_category,
       SUM(
         CASE 
-          WHEN type_of_movement = 'OUT' THEN rented_quantity
-          WHEN type_of_movement = 'IN' THEN -returned_quantity
+          WHEN UPPER(type_of_movement) = 'OUT' THEN rented_quantity
+          WHEN UPPER(type_of_movement) = 'IN' THEN -returned_quantity
           ELSE 0
         END
       ) AS net_used
@@ -63,8 +63,8 @@ exports.getTopUsedRawMaterials = async () => {
     GROUP BY item_name, item_category
     HAVING SUM(
         CASE 
-          WHEN type_of_movement = 'OUT' THEN rented_quantity
-          WHEN type_of_movement = 'IN' THEN -returned_quantity
+          WHEN UPPER(type_of_movement) = 'OUT' THEN rented_quantity
+          WHEN UPPER(type_of_movement) = 'IN' THEN -returned_quantity
           ELSE 0
         END
     ) > 0
