@@ -1,9 +1,9 @@
 const db = require("../config/db");
 
-const toIntOrNull = (value) => {
-    const n = parseInt(value);
-    return isNaN(n) ? null : n;
-  };
+const toFloatOrNull = (value) => {
+  const n = parseFloat(value);
+  return isNaN(n) ? null : n;
+};
 
   const cleanDate = (val) => {
      return val && val.trim() !== '' ? val : null;
@@ -23,6 +23,43 @@ const toIntOrNull = (value) => {
   }
 };
 
+
+const normalizeMeasurement = (qty, unit) => {
+  if (!qty || !unit) return { quantity: qty, unit };
+
+  const q = parseFloat(qty) || 0;
+  const u = unit.toLowerCase().trim();
+
+  switch (u) {
+    case "centimetre":
+    case "centimeter":
+    case "cm":
+      return { quantity: q / 100, unit: "metre" };
+
+    case "grams":
+    case "gram":
+    case "g":
+      return { quantity: q / 1000, unit: "kilograms" };
+
+    case "milli litres":
+    case "millilitres":
+    case "ml":
+      return { quantity: q / 1000, unit: "litres" };
+
+    // already base units → no change
+    case "metre":
+    case "kilograms":
+    case "litres":
+    case "count":
+      return { quantity: q, unit: u };
+
+    default:
+      // keep original if unknown
+      return { quantity: q, unit };
+  }
+};
+
+
 const checkStockBeforeMovement = async (film_or_raw, item_name, item_category, rented_quantity, type_of_movement) => {
   const isFilm = film_or_raw.toUpperCase() === "FILM";
   const table = isFilm ? "film_inventory" : "raw_material_inventory";
@@ -39,7 +76,7 @@ const checkStockBeforeMovement = async (film_or_raw, item_name, item_category, r
     }
 
     const availableQty = res.rows[0].available_quantity;
-    const neededQty = parseInt(rented_quantity) || 0;
+    const neededQty = parseFloat(rented_quantity) || 0;
 
     if (neededQty > availableQty) {
       throw new Error(
@@ -65,8 +102,8 @@ const adjustInventory = async (
     type_of_movement,
   } = newMovement;
 
-  const rentedQty = parseInt(rented_quantity) || 0;
-  const returnedQty = parseInt(returned_quantity) || 0;
+  const rentedQty = parseFloat(rented_quantity) || 0;
+  const returnedQty = parseFloat(returned_quantity) || 0;
 
   const isFilm = film_or_raw.toUpperCase() === "FILM";
   const table = isFilm ? "film_inventory" : "raw_material_inventory";
@@ -78,9 +115,9 @@ const adjustInventory = async (
     // Reverse the original movement
     quantityDelta = isIn ? -(returnedQty || 0) : rentedQty || 0;
   } else if (prevMovement) {
-    const prevQty = isIn
-      ? parseInt(prevMovement.returned_quantity) || 0
-      : parseInt(prevMovement.rented_quantity) || 0;
+    const prevQty = isIn ? 
+          parseFloat(prevMovement.returned_quantity) || 0 : 
+          parseFloat(prevMovement.rented_quantity) || 0;
     const newQty = isIn ? returnedQty || 0 : rentedQty || 0;
     quantityDelta = isIn ? newQty - prevQty : prevQty - newQty;
   } else {
@@ -151,6 +188,15 @@ exports.create = async (data) => {
   } = data;
 
   await validateItemExists(film_or_raw, item_name, item_category);
+
+  const rentedNorm = normalizeMeasurement(rented_quantity, measured_unit);
+  const returnedNorm = normalizeMeasurement(returned_quantity, measured_unit);
+
+  // After normalization, use the normalized unit for DB
+  rented_quantity = rentedNorm.quantity;
+  returned_quantity = returnedNorm.quantity;
+  measured_unit = rentedNorm.unit;
+
    await checkStockBeforeMovement(film_or_raw, item_name, item_category, rented_quantity, type_of_movement);
 
   const res = await db.query(
@@ -166,9 +212,9 @@ exports.create = async (data) => {
       film_or_raw,
       item_name,
       item_category,
-      toIntOrNull(rented_quantity),
+      toFloatOrNull(rented_quantity),
       cleanDate(rented_date),
-      toIntOrNull(returned_quantity),
+      toFloatOrNull(returned_quantity),
       cleanDate(returned_date),
       job_card_number,
       measured_unit,
@@ -194,9 +240,12 @@ exports.update = async (id, data) => {
   if (
     data.item_name !== previousMovement.item_name ||
     data.item_category !== previousMovement.item_category ||
-    data.type_of_movement !== previousMovement.type_of_movement 
+    data.type_of_movement !== previousMovement.type_of_movement ||
+    data.rented_quantity !== previousMovement.rented_quantity ||
+    data.returned_quantity !== previousMovement.returned_quantity ||
+    data.measured_unit !== previousMovement.measured_unit
   ) {
-    const err = new Error("You cannot change item_name or item_category after creation.");
+    const err = new Error("You cannot change Item Name,Category,Movement Type, Quantity, Unit of Measurement after creation.");
     err.status = 400;
     throw err;
   }
@@ -231,8 +280,8 @@ exports.update = async (id, data) => {
     }
 
     const availableQty = res.rows[0].available_quantity;
-    const oldQty = parseInt(previousMovement.rented_quantity) || 0;
-    const newQty = parseInt(rented_quantity) || 0;
+    const oldQty = parseFloat(previousMovement.rented_quantity) || 0;
+    const newQty = parseFloat(rented_quantity) || 0;
 
     // effectively, after updating, we need extra (new - old)
     const extraNeeded = newQty - oldQty;
@@ -256,9 +305,9 @@ exports.update = async (id, data) => {
     [
       rented_person_name,
       film_or_raw,
-      toIntOrNull(rented_quantity),
+      toFloatOrNull(rented_quantity),
       cleanDate(rented_date),
-      toIntOrNull(returned_quantity),
+      toFloatOrNull(returned_quantity),
       cleanDate(returned_date),
       job_card_number,
       measured_unit,
