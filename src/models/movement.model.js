@@ -27,12 +27,12 @@ const toFloatOrNull = (value) => {
 const normalizeMeasurement = (qty, unit) => {
   if (!qty || !unit) return { quantity: qty, unit };
 
-  const q = parseFloat(qty) || 0;
-  const u = unit.toLowerCase().trim();
+  let q = parseFloat(qty) || 0;
+  let u = unit.toLowerCase().trim();
 
   switch (u) {
-    case "centimetre":
-    case "centimeter":
+    case "centimetres":
+    case "Centimeter":
     case "cm":
       return { quantity: q / 100, unit: "metre" };
 
@@ -47,7 +47,7 @@ const normalizeMeasurement = (qty, unit) => {
       return { quantity: q / 1000, unit: "litres" };
 
     // already base units → no change
-    case "metre":
+    case "metres":
     case "kilograms":
     case "litres":
     case "count":
@@ -97,13 +97,13 @@ const adjustInventory = async (
     film_or_raw,
     item_name,
     item_category,
-    rented_quantity = 0,
-    returned_quantity = 0,
+    rented_quantity = 0.00,
+    returned_quantity = 0.00,
     type_of_movement,
   } = newMovement;
 
-  const rentedQty = parseFloat(rented_quantity) || 0;
-  const returnedQty = parseFloat(returned_quantity) || 0;
+  const rentedQty = parseFloat(rented_quantity) || 0.00;
+  const returnedQty = parseFloat(returned_quantity) || 0.00;
 
   const isFilm = film_or_raw.toUpperCase() === "FILM";
   const table = isFilm ? "film_inventory" : "raw_material_inventory";
@@ -113,15 +113,16 @@ const adjustInventory = async (
 
   if (isReverse) {
     // Reverse the original movement
-    quantityDelta = isIn ? -(returnedQty || 0) : rentedQty || 0;
+    quantityDelta = isIn ? -(returnedQty || 0.00) : rentedQty || 0.00;
   } else if (prevMovement) {
     const prevQty = isIn ? 
-          parseFloat(prevMovement.returned_quantity) || 0 : 
-          parseFloat(prevMovement.rented_quantity) || 0;
-    const newQty = isIn ? returnedQty || 0 : rentedQty || 0;
+          parseFloat(prevMovement.returned_quantity) || 0.00 : 
+          parseFloat(prevMovement.rented_quantity) || 0.00;
+    const newQty = isIn ? returnedQty || 0.00 : rentedQty || 0.00;
+    
     quantityDelta = isIn ? newQty - prevQty : prevQty - newQty;
   } else {
-    quantityDelta = isIn ? returnedQty || 0 : -(rentedQty || 0);
+    quantityDelta = isIn ? returnedQty || 0.00 : -(rentedQty || 0.00);
   }
 
   const inventoryRes = await db.query(
@@ -136,14 +137,15 @@ const adjustInventory = async (
   }
 
   const currentQty = inventoryRes.rows[0].available_quantity;
-  const updatedQty = currentQty + quantityDelta;
+  const updatedQty = parseFloat(currentQty) + parseFloat(quantityDelta);
 
+  
   if (updatedQty < 0) {
     throw new Error(
       `Inventory underflow: trying to apply delta ${quantityDelta}, only ${currentQty} available.`,
     );
   }
-
+ 
   await db.query(
     `UPDATE ${table}
        SET available_quantity = $1,
@@ -172,7 +174,7 @@ exports.getById = async (id) => {
 };
 
 exports.create = async (data) => {
-  const {
+  let {
     rented_person_name,
     film_or_raw,
     item_name,
@@ -192,11 +194,14 @@ exports.create = async (data) => {
   const rentedNorm = normalizeMeasurement(rented_quantity, measured_unit);
   const returnedNorm = normalizeMeasurement(returned_quantity, measured_unit);
 
-  // After normalization, use the normalized unit for DB
-  rented_quantity = rentedNorm.quantity;
-  returned_quantity = returnedNorm.quantity;
-  measured_unit = rentedNorm.unit;
+  console.log("after conversion "+returnedNorm.quantity);
 
+  // After normalization, use the normalized unit for DB
+   data.rented_quantity = rentedNorm.quantity;
+   data.returned_quantity = returnedNorm.quantity;
+   data.measured_unit = rentedNorm.unit;
+   
+   
    await checkStockBeforeMovement(film_or_raw, item_name, item_category, rented_quantity, type_of_movement);
 
   const res = await db.query(
@@ -223,6 +228,7 @@ exports.create = async (data) => {
     ],
   );
 
+ 
   await adjustInventory(data); // inventory logic
   return res.rows[0];
 };
@@ -280,8 +286,8 @@ exports.update = async (id, data) => {
     }
 
     const availableQty = res.rows[0].available_quantity;
-    const oldQty = parseFloat(previousMovement.rented_quantity) || 0;
-    const newQty = parseFloat(rented_quantity) || 0;
+    const oldQty = parseFloat(previousMovement.rented_quantity) || 0.00;
+    const newQty = parseFloat(rented_quantity) || 0.00;
 
     // effectively, after updating, we need extra (new - old)
     const extraNeeded = newQty - oldQty;
